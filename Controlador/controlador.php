@@ -31,7 +31,6 @@ class Controlador {
 
     public function handleRequest() {
         $action = $_GET['action'] ?? '';
-
         switch ($action) {
             case 'login':
                 $this->login();
@@ -42,8 +41,14 @@ class Controlador {
             case 'agregarColeccion':
                 $this->administrarRecursos();
             break;
-            case 'gestionarPrestamos':
-                $this->gestionarPrestamos();
+            case 'requestPrestamo':
+                $this->solicitarPrestamo();
+            break;
+            case 'returnResource':
+                $this->devolverRecurso();
+            break;
+            case 'getPrestamos':
+                $this->obtenerPrestamos();
             break;
             case 'actualizarPerfil':
                 $this->actualizarPerfil();
@@ -65,7 +70,10 @@ class Controlador {
             break;
             case 'deleteUser':
                 $this->eliminarUsuario();
-            break;            
+            break;    
+            case 'getUsuario':
+                $this->obtenerUsuarioId();
+            break; 
             default:
                 echo json_encode(['message' => 'Acción no válida.']);
             break;
@@ -73,9 +81,9 @@ class Controlador {
     }
 
     private function validarToken() {
-        $headers = getallheaders();
+        $headers    = getallheaders();
         $authHeader = $headers['Authorization'] ?? '';
-        $token = str_replace('Bearer ', '', $authHeader); // Eliminar 'Bearer ' del header
+        $token      = str_replace('Bearer ', '', $authHeader); // Eliminar 'Bearer ' del header
     
         if ($token) {
             try {
@@ -114,7 +122,7 @@ class Controlador {
                 ]
             ];
             $jwt = JWT::encode($payload, $this->key, 'HS256');
-            echo json_encode(['token' => $jwt, 'rol' => $usuario['rol'], 'username' => $usuario['nombre']]);
+            echo json_encode(['token' => $jwt, 'rol' => $usuario['rol'], 'username' => $usuario['nombre'], 'id' => $usuario['id']]);
         } else
             echo json_encode(['message' => 'Credenciales incorrectas']);
     }
@@ -130,18 +138,29 @@ class Controlador {
     }
 
     private function administrarRecursos() {
-        $this->validarToken();
         $response = $this->biblioteca->administrarRecursos($this->data);
         echo json_encode($response);
     }
 
-    private function gestionarPrestamos() {
-        $this->validarToken();
-        $usuarioId  = $this->data['usuarioId']  ?? '';
-        $rescursoId = $this->data['rescursoId'] ?? '';
-
-        $response = $this->biblioteca->gestionarPrestamos($usuarioId, $rescursoId);
-        echo json_encode(['message' => $response]);
+    private function solicitarPrestamo() {
+        $recursoId      = $this->data['id']      ?? '';
+        $fechaSolicitud = $this->data['fechaSolicitud'] ?? '';
+        $id_usuario     = $this->data['usuarioId']      ?? '';
+    
+        $response = $this->biblioteca->solicitarPrestamo($recursoId, $fechaSolicitud, $id_usuario);
+        echo json_encode($response);
+    }
+    
+    private function devolverRecurso() {
+        $prestamo_id = $this->data['id'] ?? '';
+    
+        $response = $this->biblioteca->devolverRecurso($prestamo_id);
+        echo json_encode($response);
+    }
+    
+    private function obtenerPrestamos() {
+        $response = $this->biblioteca->obtenerPrestamos();
+        echo json_encode([$response]);
     }
 
     private function actualizarPerfil() {
@@ -182,12 +201,14 @@ class Controlador {
         echo json_encode($response);
     }
     private function actualizarUsuario() {
-        $nombre = $this->data['nombre'] ?? '';
-        $email  = $this->data['email']  ?? '';
-        $rol    = $this->data['rol']    ?? '';
-        $id     = $this->data['id']     ?? '';
+        $nombre       = $this->data['nombre']   ?? '';
+        $email        = $this->data['email']    ?? '';
+        $rol          = $this->data['rol']      ?? '';
+        $id           = $this->data['id']       ?? '';
+        $password     = $this->data['password'] ?? '';
+        $preferencias = $this->data['preferencias'] ?? '';
 
-        $response = $this->biblioteca->actualizarUsuario($nombre, $email, $rol, $id);
+        $response = $this->biblioteca->actualizarUsuario($nombre, $email, $rol, $id, $password, $preferencias);
         echo json_encode($response);
     }
     private function eliminarUsuario() {
@@ -197,6 +218,11 @@ class Controlador {
         
         $response = $this->biblioteca->eliminarUsuario($id);
         echo json_encode($response);
+    }
+    private function obtenerUsuarioId() {
+        $id       = $this->data['id'] ?? '';
+        $response = $this->biblioteca->obtenerUsuarioPorId($id);
+        echo json_encode([$response]);
     }
 }
 

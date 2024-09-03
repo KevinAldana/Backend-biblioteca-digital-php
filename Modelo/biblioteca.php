@@ -177,30 +177,37 @@ class Biblioteca {
             return 0 . $e->getMessage();
         }
     }
-    // Función para actualizar usuario desde el perfil de adiministrador
-    public function actualizarUsuario($nombre, $email, $rol, $id) {
+    // Función para actualizar usuario 
+    public function actualizarUsuario($nombre, $email, $rol, $id, $contraseña = '', $preferencias = null) {
         try {
-            // Prepara la consulta SQL para actualizar el recurso específico por ID
-            $stmt = $this->pdo->prepare('
-                UPDATE 
-                    usuarios 
-                SET
-                    nombre = :nombre, 
-                    email  = :email, 
-                    rol    = :rol
-                WHERE 
-                    id = :id
-            ');
-            $stmt->bindParam(':nombre', $nombre);
-            $stmt->bindParam(':email' , $email);
-            $stmt->bindParam(':rol'   , $rol);
-            $stmt->bindParam(':id'    , $id, PDO::PARAM_INT);
-            $stmt->execute();
+            $sql = "UPDATE usuarios SET nombre = ?, email = ?, rol = ?";
+            if (!empty($contraseña)) {
+                $contraseñaHash = password_hash($contraseña, PASSWORD_BCRYPT);
+                $sql .= ", contraseña = ?";
+            }
+            if ($preferencias !== null)
+                $sql .= ", preferencias = ?";
+
+            $sql    .= " WHERE id = ?";
+            $stmt   = $this->pdo->prepare($sql);
+            $params = [$nombre, $email, $rol];
+
+            if (!empty($contraseña))
+                $params[] = $contraseñaHash;
+            if ($preferencias !== null)
+                $params[] = $preferencias;
+
+            $params[] = $id;
+            $stmt->execute($params);
             return 1;
-        } catch (Exception $e) {
+        } catch (PDOException $e) {
             return 0 . $e->getMessage();
+        } catch (Exception $e) {
+            return ['message' => 'Error inesperado: ' . $e->getMessage()];
         }
     }
+    
+    
     public function eliminarUsuario($id) {
         try {
             $stmt = $this->pdo->prepare('DELETE FROM usuarios WHERE id = :id');
@@ -209,6 +216,83 @@ class Biblioteca {
             return 1;
         } catch (Exception $e) {
             return 0 . $e->getMessage();
+        }
+    }
+    public function solicitarPrestamo($recursoId, $fechaSolicitud, $usuarioId) {
+        try {
+            $stmt = $this->pdo->prepare('
+                INSERT INTO prestamos (
+                    id_usuario,
+                    id_recurso,
+                    fecha_prestamo,
+                    estado
+                )
+                VALUES (
+                    :usuarioId,
+                    :recurso_id,
+                    :fecha_solicitud,
+                    "prestado"
+                )
+            ');
+            $stmt->bindParam(':recurso_id'     , $recursoId);
+            $stmt->bindParam(':fecha_solicitud', $fechaSolicitud);
+            $stmt->bindParam(':usuarioId'      , $usuarioId);
+            $stmt->execute();
+            return 1;
+        } catch (Exception $e) {
+            return 0 . $e->getMessage();
+        }
+    }
+    public function devolverRecurso($prestamoId) {
+        try {
+            $stmt = $this->pdo->prepare('
+                UPDATE 
+                    prestamos
+                SET 
+                    fecha_devolucion = NOW(), 
+                    estado           = "devuelto"
+                WHERE 
+                    id = :prestamoId
+            ');
+            $stmt->bindParam(':prestamoId', $prestamoId, PDO::PARAM_INT);
+            $stmt->execute();
+            return 1;
+        } catch (Exception $e) {
+            return 0 . $e->getMessage();
+        }
+    }
+    public function obtenerPrestamos() {
+        try {
+            $stmt = $this->pdo->prepare('
+                SELECT 
+                    prestamos.id, 
+                    recursos.titulo, 
+                    prestamos.fecha_prestamo, 
+                    prestamos.fecha_devolucion
+                FROM 
+                    prestamos
+                    JOIN recursos ON prestamos.id_recurso = recursos.id
+                WHERE 
+                    prestamos.estado    = "prestado" 
+                    OR prestamos.estado = "devuelto"
+            ');
+            $stmt->execute();
+            $datos = [];
+            while ($row = $stmt->fetch())
+                $datos[] = $row;
+            return $datos;
+        } catch (Exception $e) {
+            return 'Error: ' . $e->getMessage();
+        }
+    }
+    // Funcion para obtener el usuario por ID
+    public function obtenerUsuarioPorId($id) {
+        try {
+            $stmt = $this->pdo->prepare('SELECT * FROM usuarios WHERE id = ?');
+            $stmt->execute([$id]);
+            return $stmt->fetch();
+        } catch (Exception $e) {
+            throw new Exception('Error: ' . $e->getMessage());
         }
     }
 }
