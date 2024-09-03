@@ -73,7 +73,10 @@ class Controlador {
             break;    
             case 'getUsuario':
                 $this->obtenerUsuarioId();
-            break; 
+            break;
+            case 'getRecursosPrestados':
+                $this->getRecursosPrestados();
+            break;
             default:
                 echo json_encode(['message' => 'Acción no válida.']);
             break;
@@ -224,6 +227,16 @@ class Controlador {
         $response = $this->biblioteca->obtenerUsuarioPorId($id);
         echo json_encode([$response]);
     }
+    private function getRecursosPrestados() {
+        $id_usuario = $this->data['id'] ?? '';
+        if ($id_usuario) {
+            $recursos = $this->biblioteca->obtenerRecursosPrestados($id_usuario);
+            echo json_encode([$recursos]);
+        } else {
+            echo json_encode(['message' => 'Usuario no autenticado.']);
+        }
+    }
+    
 }
 
 $controlador = new Controlador($pdo);

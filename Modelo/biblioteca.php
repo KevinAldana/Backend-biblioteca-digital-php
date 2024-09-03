@@ -23,7 +23,7 @@ class Biblioteca {
                 $stmt->execute([$nombre, $email, $contraseña, $rol]);
                 return 1;
             }
-        } catch (Exception $e) {
+        } catch (PDOException $e) {
             return 'Error: ' . $e->getMessage();
         }
     }
@@ -42,7 +42,7 @@ class Biblioteca {
                 return 1;
             } else
                 return 0;
-        } catch (Exception $e) {
+        } catch (PDOException $e) {
             return 'Error: ' . $e->getMessage();
         }
     }
@@ -63,7 +63,7 @@ class Biblioteca {
                 $data['titulo'], $data['autor'], $data['genero'], $data['anio'], $data['isbn'], $data['tipo'], $data['disponibilidad']
             ]);
             return 1;
-        } catch (Exception $e) {
+        } catch (PDOException $e) {
             return 0 . $e->getMessage();
         }
     }
@@ -85,7 +85,7 @@ class Biblioteca {
                 return 'Préstamo solicitado exitosamente.';
             } else
                 return 'Recurso no disponible.';
-        } catch (Exception $e) {
+        } catch (PDOException $e) {
             return 'Error: ' . $e->getMessage();
         }
     }
@@ -97,7 +97,7 @@ class Biblioteca {
             $stmt->execute([$nombre, $email, $usuarioId]);
 
             return 'Perfil actualizado exitosamente.';
-        } catch (Exception $e) {
+        } catch (PDOException $e) {
             return 'Error: ' . $e->getMessage();
         }
     }
@@ -120,7 +120,7 @@ class Biblioteca {
             $stmt->execute([$email]);
             return $stmt->fetch();
         } catch (Exception $e) {
-            throw new Exception('Error: ' . $e->getMessage());
+            throw new PDOException('Error: ' . $e->getMessage());
         }
     }
     // Funcion para obtener todos los usuarios
@@ -133,7 +133,7 @@ class Biblioteca {
                 $datos[] = $row;
             return $datos;
         } catch (Exception $e) {
-            throw new Exception('Error: ' . $e->getMessage());
+            throw new PDOException('Error: ' . $e->getMessage());
         }
     }
     // Función encargada de obtener todas las colecciones (Libros)
@@ -173,7 +173,7 @@ class Biblioteca {
             $stmt->bindParam(':id'    , $id, PDO::PARAM_INT);
             $stmt->execute();
             return 1;
-        } catch (Exception $e) {
+        } catch (PDOException $e) {
             return 0 . $e->getMessage();
         }
     }
@@ -214,7 +214,7 @@ class Biblioteca {
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
             $stmt->execute();
             return 1;
-        } catch (Exception $e) {
+        } catch (PDOException $e) {
             return 0 . $e->getMessage();
         }
     }
@@ -281,7 +281,7 @@ class Biblioteca {
             while ($row = $stmt->fetch())
                 $datos[] = $row;
             return $datos;
-        } catch (Exception $e) {
+        } catch (PDOException $e) {
             return 'Error: ' . $e->getMessage();
         }
     }
@@ -291,8 +291,31 @@ class Biblioteca {
             $stmt = $this->pdo->prepare('SELECT * FROM usuarios WHERE id = ?');
             $stmt->execute([$id]);
             return $stmt->fetch();
-        } catch (Exception $e) {
+        } catch (PDOException $e) {
             throw new Exception('Error: ' . $e->getMessage());
+        }
+    }
+    public function obtenerRecursosPrestados($id_usuario) {
+        try {
+            $sql = "SELECT 
+                        r.id AS id_recurso, 
+                        r.titulo,
+                        r.autor,
+                        r.genero,
+                        p.fecha_prestamo
+                    FROM 
+                        prestamos p
+                        JOIN recursos r ON p.id_recurso = r.id
+                    WHERE 
+                        p.id_usuario = ? 
+                        AND p.estado = 'prestado'";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([$id_usuario]);
+            while ($row = $stmt->fetch())
+                $datos[] = $row;
+            return $datos;
+        } catch (PDOException $e) {
+            return [];
         }
     }
 }
