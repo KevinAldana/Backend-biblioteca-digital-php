@@ -1,0 +1,205 @@
+<?php
+require '../Modelo/biblioteca.php';
+require '../vendor/autoload.php'; 
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
+use Dotenv\Dotenv;
+
+// Cargar variables de entorno
+$dotenv = Dotenv::createImmutable(__DIR__ . '/../');
+$dotenv->load();
+
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: POST, GET, OPTIONS, PUT, DELETE");
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
+
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+class Controlador {
+    private $biblioteca;
+    private $data;
+    private $key;
+
+    public function __construct($pdo) {
+        $this->biblioteca = new Biblioteca($pdo);
+        $this->data       = json_decode(file_get_contents('php://input'), true);
+        $this->key        = $_ENV['JWT_SECRET_KEY'];
+    }
+
+    public function handleRequest() {
+        $action = $_GET['action'] ?? '';
+
+        switch ($action) {
+            case 'login':
+                $this->login();
+            break;
+            case 'registro':
+                $this->registro();
+            break;
+            case 'agregarColeccion':
+                $this->administrarRecursos();
+            break;
+            case 'gestionarPrestamos':
+                $this->gestionarPrestamos();
+            break;
+            case 'actualizarPerfil':
+                $this->actualizarPerfil();
+            break;
+            case 'crearReview':
+                $this->crearReview();
+            break;
+            case 'obtenerUsuarios':
+                $this->obtenerUsuarios();
+            break;
+            case 'getColeccion':
+                $this->obtenerColeccionesAdmin();
+            break;
+            case 'updateColeccion':
+                $this->actualizarColeccion();
+            break;
+            case 'updateUser':
+                $this->actualizarUsuario();
+            break;
+            case 'deleteUser':
+                $this->eliminarUsuario();
+            break;            
+            default:
+                echo json_encode(['message' => 'Acción no válida.']);
+            break;
+        }
+    }
+
+    private function validarToken() {
+        $headers = getallheaders();
+        $authHeader = $headers['Authorization'] ?? '';
+        $token = str_replace('Bearer ', '', $authHeader); // Eliminar 'Bearer ' del header
+    
+        if ($token) {
+            try {
+                $decoded = JWT::decode($token, new Key($this->key, 'HS256'));
+                return $decoded;
+            } catch (Exception $e) {
+                http_response_code(401);
+                echo json_encode(['message' => 'Token inválido o expirado']);
+                exit;
+            }
+        } else {
+            http_response_code(401);
+            echo json_encode(['message' => 'No se proporcionó un token']);
+            exit;
+        }
+    }
+    
+
+    private function login() {
+        $email    = $this->data['email']    ?? '';
+        $password = $this->data['password'] ?? '';
+        
+        $response = $this->biblioteca->inicioSesion($email, $password);
+        if ($response === 1) {
+            $usuario = $this->biblioteca->obtenerUsuarioPorEmail($email); // 
+            $payload = [
+                'iss' => 'http://localhost:4200',
+                'aud' => 'http://localhost:4200',
+                'iat' => time(),
+                'exp' => time() + (90 * 90),
+                'data' => [
+                    'id'       => $usuario['id'],
+                    'rol'      => $usuario['rol'],
+                    'email'    => $usuario['email'],
+                    'username' => $usuario['nombre']
+                ]
+            ];
+            $jwt = JWT::encode($payload, $this->key, 'HS256');
+            echo json_encode(['token' => $jwt, 'rol' => $usuario['rol'], 'username' => $usuario['nombre']]);
+        } else
+            echo json_encode(['message' => 'Credenciales incorrectas']);
+    }
+
+    private function registro() {
+        $name     = $this->data['nombre']   ?? '';
+        $email    = $this->data['email']    ?? '';
+        $password = $this->data['password'] ?? '';
+        $rol      = $this->data['rol']      ?? '';
+
+        $response = $this->biblioteca->registroUsuario($name, $email, $password, $rol);
+        echo json_encode(['message' => $response]);
+    }
+
+    private function administrarRecursos() {
+        $this->validarToken();
+        $response = $this->biblioteca->administrarRecursos($this->data);
+        echo json_encode($response);
+    }
+
+    private function gestionarPrestamos() {
+        $this->validarToken();
+        $usuarioId  = $this->data['usuarioId']  ?? '';
+        $rescursoId = $this->data['rescursoId'] ?? '';
+
+        $response = $this->biblioteca->gestionarPrestamos($usuarioId, $rescursoId);
+        echo json_encode(['message' => $response]);
+    }
+
+    private function actualizarPerfil() {
+        $usuarioId = $this->data['usuarioId'] ?? '';
+        $nombre    = $this->data['nombre']    ?? '';
+        $email     = $this->data['email']     ?? '';
+        $response  = $this->biblioteca->actualizarPerfil($usuarioId, $nombre, $email);
+        echo json_encode(['message' => $response]);
+    }
+
+    private function crearReview() {
+        $usuarioId    = $this->data['usuarioId']    ?? '';
+        $rescursoId   = $this->data['rescursoId']   ?? '';
+        $calificacion = $this->data['calificacion'] ?? '';
+        $comentario   = $this->data['comentario']   ?? '';
+
+        $response = $this->biblioteca->agregarReview($usuarioId, $rescursoId, $calificacion, $comentario);
+        echo json_encode(['message' => $response]);
+    }
+
+    private function obtenerUsuarios() {
+        $response = $this->biblioteca->obtenerUsuariosAdmin();
+        echo json_encode([$response]);
+    }
+    private function obtenerColeccionesAdmin() {
+        $response = $this->biblioteca->obtenerColecciones();
+        echo json_encode([$response]);
+    }
+    private function actualizarColeccion() {
+        $autor  = $this->data['autor']            ?? '';
+        $titulo = $this->data['titulo']           ?? '';
+        $genero = $this->data['genero']           ?? '';
+        $anio   = $this->data['anio_publicacion'] ?? '';
+        $isbn   = $this->data['isbn']             ?? '';
+        $id     = $this->data['id']               ?? '';
+
+        $response = $this->biblioteca->updateColeccion($autor, $titulo, $genero, $anio, $isbn, $id);
+        echo json_encode($response);
+    }
+    private function actualizarUsuario() {
+        $nombre = $this->data['nombre'] ?? '';
+        $email  = $this->data['email']  ?? '';
+        $rol    = $this->data['rol']    ?? '';
+        $id     = $this->data['id']     ?? '';
+
+        $response = $this->biblioteca->actualizarUsuario($nombre, $email, $rol, $id);
+        echo json_encode($response);
+    }
+    private function eliminarUsuario() {
+        $id = $_GET['id'] ?? '';
+        if (empty($id))
+            return 0;
+        
+        $response = $this->biblioteca->eliminarUsuario($id);
+        echo json_encode($response);
+    }
+}
+
+$controlador = new Controlador($pdo);
+$controlador->handleRequest();
+?>
