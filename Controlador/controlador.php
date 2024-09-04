@@ -50,9 +50,6 @@ class Controlador {
             case 'getPrestamos':
                 $this->obtenerPrestamos();
             break;
-            case 'actualizarPerfil':
-                $this->actualizarPerfil();
-            break;
             case 'crearReview':
                 $this->crearReview();
             break;
@@ -81,29 +78,7 @@ class Controlador {
                 echo json_encode(['message' => 'Acción no válida.']);
             break;
         }
-    }
-
-    private function validarToken() {
-        $headers    = getallheaders();
-        $authHeader = $headers['Authorization'] ?? '';
-        $token      = str_replace('Bearer ', '', $authHeader); // Eliminar 'Bearer ' del header
-    
-        if ($token) {
-            try {
-                $decoded = JWT::decode($token, new Key($this->key, 'HS256'));
-                return $decoded;
-            } catch (Exception $e) {
-                http_response_code(401);
-                echo json_encode(['message' => 'Token inválido o expirado']);
-                exit;
-            }
-        } else {
-            http_response_code(401);
-            echo json_encode(['message' => 'No se proporcionó un token']);
-            exit;
-        }
-    }
-    
+    } 
 
     private function login() {
         $email    = $this->data['email']    ?? '';
@@ -116,7 +91,7 @@ class Controlador {
                 'iss' => 'http://localhost:4200',
                 'aud' => 'http://localhost:4200',
                 'iat' => time(),
-                'exp' => time() + (90 * 90),
+                'exp' => time() + (60 * 60),
                 'data' => [
                     'id'       => $usuario['id'],
                     'rol'      => $usuario['rol'],
@@ -166,13 +141,6 @@ class Controlador {
         echo json_encode([$response]);
     }
 
-    private function actualizarPerfil() {
-        $usuarioId = $this->data['usuarioId'] ?? '';
-        $nombre    = $this->data['nombre']    ?? '';
-        $email     = $this->data['email']     ?? '';
-        $response  = $this->biblioteca->actualizarPerfil($usuarioId, $nombre, $email);
-        echo json_encode(['message' => $response]);
-    }
 
     private function crearReview() {
         $usuarioId    = $this->data['id_usuario']    ?? '';

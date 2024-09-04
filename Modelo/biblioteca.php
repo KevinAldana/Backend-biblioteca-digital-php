@@ -12,15 +12,20 @@ class Biblioteca {
     public function registroUsuario($nombre, $email, $contraseña, $rol) {
         try {
             $contraseña = password_hash($contraseña, PASSWORD_DEFAULT);
-            $stmt       = $this->pdo->prepare('SELECT * FROM usuarios WHERE email = ?');
-            $stmt->execute([$email]);
+            $stmt       = $this->pdo->prepare('SELECT * FROM usuarios WHERE email = :email');
+            $stmt->bindParam(':email', $email);
+            $stmt->execute();
             $usuario = $stmt->fetch();
-
+        
             if ($usuario)
                 return 0;
             else {
-                $stmt = $this->pdo->prepare('INSERT INTO usuarios (nombre, email, contraseña, rol) VALUES (?, ?, ?, ?)');
-                $stmt->execute([$nombre, $email, $contraseña, $rol]);
+                $stmt = $this->pdo->prepare('INSERT INTO usuarios (nombre, email, contraseña, rol) VALUES (:nombre, :email, :contraseña, :rol)');
+                $stmt->bindParam(':nombre'    , $nombre);
+                $stmt->bindParam(':email'     , $email);
+                $stmt->bindParam(':contraseña', $contraseña);
+                $stmt->bindParam(':rol'       , $rol);
+                $stmt->execute();
                 return 1;
             }
         } catch (PDOException $e) {
@@ -31,8 +36,9 @@ class Biblioteca {
     // Función para iniciar sesión
     public function inicioSesion($email, $contraseña) {
         try {
-            $stmt = $this->pdo->prepare('SELECT * FROM usuarios WHERE email = ?');
-            $stmt->execute([$email]);
+            $stmt = $this->pdo->prepare('SELECT * FROM usuarios WHERE email = :email');
+            $stmt->bindParam(':email', $email);
+            $stmt->execute();
             $usuario = $stmt->fetch();
 
             if ($usuario && password_verify($contraseña, $usuario['contraseña'])) {
@@ -54,69 +60,39 @@ class Biblioteca {
                 INSERT INTO 
                     recursos (titulo, autor, genero, anio_publicacion, isbn, tipo, disponibilidad) 
                 VALUES 
-                    (?, ?, ?, ?, ?, ?, ?) 
+                    (:titulo, :autor, :genero, :anio_publicacion, :isbn, :tipo, :disponibilidad) 
                 ON DUPLICATE KEY UPDATE 
                     titulo          = VALUES(titulo), autor         = VALUES(autor), genero = VALUES(genero),
                     anio_publicacion = VALUES(anio_publicacion), isbn = VALUES(isbn), tipo    = VALUES(tipo), disponibilidad = VALUES(disponibilidad)
             ');
-            $stmt->execute([
-                $data['titulo'], $data['autor'], $data['genero'], $data['anio'], $data['isbn'], $data['tipo'], $data['disponibilidad']
-            ]);
+            $stmt->bindParam(':titulo'          , $data['titulo']);
+            $stmt->bindParam(':autor'           , $data['autor']);
+            $stmt->bindParam(':genero'          , $data['genero']);
+            $stmt->bindParam(':anio_publicacion', $data['anio']);
+            $stmt->bindParam(':isbn'            , $data['isbn']);
+            $stmt->bindParam(':tipo'            , $data['tipo']);
+            $stmt->bindParam(':disponibilidad'  , $data['disponibilidad']);
+            $stmt->execute();
             return 1;
         } catch (PDOException $e) {
             return 0 . $e->getMessage();
         }
     }
-
-    // Función para gestionar préstamos
-    public function gestionarPrestamos($usuario_id, $recursoId) {
-        try {
-            $stmt = $this->pdo->prepare('SELECT disponibilidad FROM recursos WHERE id = ?');
-            $stmt->execute([$recursoId]);
-            $recurso = $stmt->fetch();
-
-            if ($recurso && $recurso['disponibilidad']) {
-                $stmt = $this->pdo->prepare('INSERT INTO prestamos (id_usuario, id_recurso) VALUES (?, ?)');
-                $stmt->execute([$usuario_id, $recursoId]);
-
-                $stmt = $this->pdo->prepare('UPDATE recursos SET disponibilidad = 0 WHERE id = ?');
-                $stmt->execute([$recursoId]);
-
-                return 'Préstamo solicitado exitosamente.';
-            } else
-                return 'Recurso no disponible.';
-        } catch (PDOException $e) {
-            return 'Error: ' . $e->getMessage();
-        }
-    }
-
-    // Función para actualizar perfil de usuario
-    public function actualizarPerfil($usuarioId, $nombre, $email) {
-        try {
-            $stmt = $this->pdo->prepare('UPDATE usuarios SET nombre = ?, email = ? WHERE id = ?');
-            $stmt->execute([$nombre, $email, $usuarioId]);
-
-            return 'Perfil actualizado exitosamente.';
-        } catch (PDOException $e) {
-            return 'Error: ' . $e->getMessage();
-        }
-    }
-
     // Función para agregar reseñas
-        public function agregarReview($usuarioId, $recursoId, $calificacion, $comentario) {
-            try {
-                $stmt = $this->pdo->prepare('INSERT INTO reseñas (id_usuario, id_recurso, calificacion, comentario) VALUES (:usuarioId, :recursoId, :calificacion, :comentario)');
-                $stmt->bindParam(':usuarioId'   , $usuarioId);
-                $stmt->bindParam(':recursoId'   , $recursoId);
-                $stmt->bindParam(':calificacion', $calificacion);
-                $stmt->bindParam(':comentario'  , $comentario);
-                $stmt->execute();
-            
-                return 1;
-            } catch (PDOException $e) {
-                return 0 . $e->getMessage();
-            }
+    public function agregarReview($usuarioId, $recursoId, $calificacion, $comentario) {
+        try {
+            $stmt = $this->pdo->prepare('INSERT INTO reseñas (id_usuario, id_recurso, calificacion, comentario) VALUES (:usuarioId, :recursoId, :calificacion, :comentario)');
+            $stmt->bindParam(':usuarioId'   , $usuarioId);
+            $stmt->bindParam(':recursoId'   , $recursoId);
+            $stmt->bindParam(':calificacion', $calificacion);
+            $stmt->bindParam(':comentario'  , $comentario);
+            $stmt->execute();
+        
+            return 1;
+        } catch (PDOException $e) {
+            return 0 . $e->getMessage();
         }
+    }
     // Funcion para obtener el usuario
     public function obtenerUsuarioPorEmail($email) {
         try {
@@ -181,28 +157,29 @@ class Biblioteca {
             return 0 . $e->getMessage();
         }
     }
-    // Función para actualizar usuario 
+
+    // Función para actualizar usuario
     public function actualizarUsuario($nombre, $email, $rol, $id, $contraseña = '', $preferencias = null) {
         try {
-            $sql = "UPDATE usuarios SET nombre = ?, email = ?, rol = ?";
+            $sql = "UPDATE usuarios SET nombre = :nombre, email = :email, rol = :rol";
             if (!empty($contraseña)) {
                 $contraseñaHash = password_hash($contraseña, PASSWORD_BCRYPT);
-                $sql .= ", contraseña = ?";
+                $sql .= ", contraseña = :contraseña";
             }
             if ($preferencias !== null)
-                $sql .= ", preferencias = ?";
+                $sql .= ", preferencias = :preferencias";
 
-            $sql    .= " WHERE id = ?";
-            $stmt   = $this->pdo->prepare($sql);
-            $params = [$nombre, $email, $rol];
-
+            $sql .= " WHERE id = :id";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->bindParam(':nombre', $nombre);
+            $stmt->bindParam(':email', $email);
+            $stmt->bindParam(':rol', $rol);
+            $stmt->bindParam(':id', $id);
             if (!empty($contraseña))
-                $params[] = $contraseñaHash;
+                $stmt->bindParam(':contraseña', $contraseñaHash);
             if ($preferencias !== null)
-                $params[] = $preferencias;
-
-            $params[] = $id;
-            $stmt->execute($params);
+                $stmt->bindParam(':preferencias', $preferencias);
+            $stmt->execute();
             return 1;
         } catch (PDOException $e) {
             return 0 . $e->getMessage();
@@ -210,8 +187,7 @@ class Biblioteca {
             return ['message' => 'Error inesperado: ' . $e->getMessage()];
         }
     }
-    
-    
+
     public function eliminarUsuario($id) {
         try {
             $stmt = $this->pdo->prepare('DELETE FROM usuarios WHERE id = :id');
