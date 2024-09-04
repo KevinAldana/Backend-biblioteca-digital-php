@@ -175,13 +175,13 @@ class Controlador {
     }
 
     private function crearReview() {
-        $usuarioId    = $this->data['usuarioId']    ?? '';
-        $rescursoId   = $this->data['rescursoId']   ?? '';
+        $usuarioId    = $this->data['id_usuario']    ?? '';
+        $rescursoId   = $this->data['id_recurso']   ?? '';
         $calificacion = $this->data['calificacion'] ?? '';
         $comentario   = $this->data['comentario']   ?? '';
 
         $response = $this->biblioteca->agregarReview($usuarioId, $rescursoId, $calificacion, $comentario);
-        echo json_encode(['message' => $response]);
+        echo json_encode($response);
     }
 
     private function obtenerUsuarios() {
@@ -228,7 +228,7 @@ class Controlador {
         echo json_encode([$response]);
     }
     private function getRecursosPrestados() {
-        $id_usuario = $this->data['id'] ?? '';
+        $id_usuario = $this->data['usuarioId'] ?? '';
         if ($id_usuario) {
             $recursos = $this->biblioteca->obtenerRecursosPrestados($id_usuario);
             echo json_encode([$recursos]);

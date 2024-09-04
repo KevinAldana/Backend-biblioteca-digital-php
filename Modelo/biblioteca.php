@@ -103,16 +103,20 @@ class Biblioteca {
     }
 
     // Función para agregar reseñas
-    public function agregarReview($usuarioId, $recursoId, $calificacion, $comentario) {
-        try {
-            $stmt = $this->pdo->prepare('INSERT INTO reseñas (id_usuario, id_recurso, calificacion, comentario) VALUES (?, ?, ?, ?)');
-            $stmt->execute([$usuarioId, $recursoId, $calificacion, $comentario]);
-
-            return 'Reseña agregada exitosamente.';
-        } catch (Exception $e) {
-            return 'Error: ' . $e->getMessage();
+        public function agregarReview($usuarioId, $recursoId, $calificacion, $comentario) {
+            try {
+                $stmt = $this->pdo->prepare('INSERT INTO reseñas (id_usuario, id_recurso, calificacion, comentario) VALUES (:usuarioId, :recursoId, :calificacion, :comentario)');
+                $stmt->bindParam(':usuarioId'   , $usuarioId);
+                $stmt->bindParam(':recursoId'   , $recursoId);
+                $stmt->bindParam(':calificacion', $calificacion);
+                $stmt->bindParam(':comentario'  , $comentario);
+                $stmt->execute();
+            
+                return 1;
+            } catch (PDOException $e) {
+                return 0 . $e->getMessage();
+            }
         }
-    }
     // Funcion para obtener el usuario
     public function obtenerUsuarioPorEmail($email) {
         try {
